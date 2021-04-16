@@ -1,86 +1,140 @@
 const Joi = require('joi');
 const express = require('express');
+const { object } = require('joi');
 
 const app = express()
 
+
 app.use(express.json());
 
-const courses = [
-    {id:1, name:"cours1"},
-    {id:2, name:"cours2"},
-    {id:3, name:"cours3"}
-]
 
 
-app.get('/', (req, res) => {
-    res.send("hello world");
-});
+//Error Handler
+app.use((err, req, res, callback) => {
+    const status = 400
+    const body = "error: JSON parsing failed "
+    res.status(status).send(body)
+    callback()
+  })
 
 
+//Url
+app.post('/api/data', (req, res) => {
 
-app.get('/api/courses', (req, res) => {
-    res.send(courses)
-});
+    // request body data
+     const responseResults = {
 
+        payLoad: req.body['payload'],
+        skip: req.body['skip'],
+        take: req.body['take'],
+        totalRecords: req.body['totalRecords']
+     }
 
-// app.get('/api/courses/:id', (req, res) => {
-//     res.send(req.params.id);
-// });
+    
+    // validating the request's body data
+    const {error} = validateResultsResponse(responseResults);
 
-app.get('/api/post/courses/:id', (req, res) => {
-     courses.find(c => c.id === parseInt(req.params.id));
-   if (!courses) res.status(404).send("the give id was not found")
-   res.send(courses)
-});
-
-app.post('/api/courses', (req, res) => {
-    const {error} = validateCourse(req.body);
-
+    // returning errors, if found.
     if (error) {
-        res.status(400).send(error.details[0].message)
-        return;
-    }
-
-    const course = {
-        id: courses.length + 1,
-        name: req.body.name
-    }
-
-    courses.push(course);
-    res.send(course);
-})
-
-
-app.put('api/courses/:id', (req, res) => {
-    const course = courses.find(c => c.id === parseInt(req.params.id));
-    if (!course){
-        res.status(404).send("the give id was not found");
-    }
-
-    //const result = validateCourse(req.body);
-    const {error} = validateCourse(req.body);
-
-    if (error) {
-        res.status(400).send(error.details[0].message);
+        const status = 400
+        const body = "Error, please check your payload  "+ error.details[0].message
+        res.status(status).send(body)
         return;
     };
 
 
-    course.name = req.body.name;
-    res.send(course);
-});
+    const resultsPayload = responseResults['payLoad']
 
-//PORT
-//const port = process.env.PORT || 3000;
+    //checking tvshows data for errors
+    const tvShows = []
+   
+    for(let i of resultsPayload) {
+        
+        if (Object.keys(i).length > 3 ) {
+            tvShows.unshift(i)
+            const payLoadResults = validateResultsPayload(i);
+
+            if (payLoadResults.error) {
+                const status = 400
+                const body = "Error, please check your payload  "+ payLoadResults.error.details[0].message
+                res.status(status).send(body)
+                return;
+            };
+        }
+    }
+
+
+   
+
+   //packing the response data into object.
+    const responseData = []
+
+    for(let i of tvShows) {
+
+        const image = i['image'].showImage
+        const slug = i['slug']
+        const title = i['title']
+
+        if (i["drm"] === true && i['episodeCount'] > 0) {
+            const data = {
+                image : image,
+                slug: slug,
+                title: title
+            }
+    
+            responseData.unshift(data)
+        }
+
+        
+    }
+
+
+    const response = {
+        response: responseData
+    }
+
+    res.send(response);
+})
+
+
+
+
+
 app.listen(process.env.PORT || 3000, () => console.log('listing on port 3000'));
 
 
 
-function validateCourse(course) {
-    const schema = Joi.object({
-        name: Joi.string().min(3).required()
-    });
 
-    //const result = Joi.valid(req.body, schema);
-    return schema.validate(course);
+// validator
+function validateResultsResponse(data) {
+    const schema = Joi.object({
+        payLoad: Joi.array().required(),
+        skip: Joi.number().min(0).required(),
+        take: Joi.number().min(0).required(),
+        totalRecords: Joi.number().min(0).required()
+
+    });
+    return schema.validate(data);
+}
+
+
+//validator 
+function validateResultsPayload(data) {
+    const schema = Joi.object({
+        country: Joi.string().required(),
+        description : Joi.string().required(),
+        drm: Joi.boolean().required(),
+        episodeCount: Joi.number().min(0).required(),
+        genre:  Joi.string().required(),
+        image: Joi.object().required(),
+        language:  Joi.string().required(),
+        nextEpisode: Joi.required(),
+        primaryColour:  Joi.string().required(),
+        seasons: Joi.required(),
+        slug :Joi.string().required(),
+        title :Joi.string().required().empty(),
+        tvChannel :Joi.string().required()
+        
+    });
+    return schema.validate(data);
 }
