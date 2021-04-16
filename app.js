@@ -27,7 +27,13 @@ app.use((req, res, next) => {
 //Error Handler
 app.use((err, req, res, callback) => {
     const status = 400
-    const body = "error: JSON parsing failed "
+
+    const errors = {
+        error: "Could not decode request: JSON parsing failed"
+    }
+    
+    const body = errors
+    res.setHeader('content-type', 'application/json');
     res.status(status).send(body)
     callback()
   })
@@ -52,7 +58,12 @@ app.post('/api/data', (req, res) => {
     // returning errors, if found.
     if (error) {
         const status = 400
-        const body = "Error, please check your payload  "+ error.details[0].message
+
+       const errors = {
+           error: "please check your payload  "+ error.details[0].message
+       }
+        const body = errors
+        res.setHeader('content-type', 'application/json');
         res.status(status).send(body)
         return;
     };
@@ -71,7 +82,13 @@ app.post('/api/data', (req, res) => {
 
             if (payLoadResults.error) {
                 const status = 400
-                const body = "Error, please check your payload  "+ payLoadResults.error.details[0].message
+
+                const errors = {
+                error: "please check your payload  "+ error.details[0].message
+                     }
+
+                const body = errors
+                res.setHeader('content-type', 'application/json');
                 res.status(status).send(body)
                 return;
             };
