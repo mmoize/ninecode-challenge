@@ -108,6 +108,8 @@ app.post('/api/data', (req, res) => {
         response: responseData
     }
 
+    res.setHeader('content-type', 'application/json');
+
     res.send(response);
 })
 
